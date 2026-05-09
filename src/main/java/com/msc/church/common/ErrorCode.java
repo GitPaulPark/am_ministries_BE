@@ -39,7 +39,15 @@ public enum ErrorCode {
 
     // --- Sermon ---
     SERMON_NOT_FOUND(HttpStatus.NOT_FOUND, "error.sermon.not_found"),
-    DUPLICATE_SERMON_DATE(HttpStatus.CONFLICT, "error.sermon.duplicate_date");
+    DUPLICATE_SERMON_DATE(HttpStatus.CONFLICT, "error.sermon.duplicate_date"),
+
+    // --- Meetings ---
+    COMMITTEE_NOT_FOUND(HttpStatus.NOT_FOUND, "error.committee.not_found"),
+    DUPLICATE_COMMITTEE_CODE(HttpStatus.CONFLICT, "error.committee.duplicate_code"),
+    MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "error.meeting.not_found"),
+    DUPLICATE_MEETING_DATE(HttpStatus.CONFLICT, "error.meeting.duplicate_date"),
+    MEETING_ALREADY_PUBLISHED(HttpStatus.CONFLICT, "error.meeting.already_published"),
+    ACTION_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "error.action_item.not_found");
 
     private final HttpStatus status;
     private final String messageKey;
