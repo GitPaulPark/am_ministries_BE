@@ -1,11 +1,23 @@
 spring:
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/church?useUnicode=true&characterEncoding=utf8mb4&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}
+    # Brew MySQL on 3307 (port 3306 is the user's existing MariaDB; we leave it alone).
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3307/church?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:church}
     password: ${DB_PASSWORD:church}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     show-sql: true
+
+# DEV-ONLY DEFAULTS — never used in prod (application-prod.yml requires real env vars).
+# Per DECISIONS.md: ship a deterministic dev secret so a fresh clone can run with one
+# command. The value is base64-encoded 48 bytes — exact bytes don't matter, only that
+# it decodes to ≥32 bytes for HS256.
+jwt:
+  secret: ${JWT_SECRET:dev-only-Q2hhbmdlTWVJbVByb2RBbmREb250Q29tbWl0VGhpc1NlY3JldEFueXdoZXJlRWxzZQ==}
+
+app:
+  cookies:
+    secure: false   # dev runs over plain http://localhost
 
 logging:
   level:

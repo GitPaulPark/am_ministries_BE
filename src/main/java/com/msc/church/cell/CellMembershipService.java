@@ -50,5 +50,10 @@ public class CellMembershipService {
                 .role("MEMBER")
                 .build();
         membershipRepository.save(membership);
+        // The owning side (CellMembership.member) is what actually persists; this just
+        // keeps the in-memory Member.memberships list consistent so callers re-using
+        // the same managed entity within the transaction (e.g. MemberService.create)
+        // see the new membership without a flush + clear + re-query dance.
+        member.getMemberships().add(membership);
     }
 }

@@ -60,7 +60,7 @@ public class Member extends BaseEntity {
     @Column(name = "birthdate")
     private LocalDate birthdate;
 
-    @Column(name = "gender", length = 1)
+    @Column(name = "gender", columnDefinition = "CHAR(1)")
     private String gender;
 
     @Column(name = "baptized", nullable = false)

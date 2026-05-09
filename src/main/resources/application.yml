@@ -62,4 +62,6 @@ jwt:
   refresh-token-ttl: ${JWT_REFRESH_TTL:P7D}
 
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  # 5173 is Vite's default; 5174 is auto-picked when 5173 is busy; 5180 is what
+  # vite.config.js pins this project to. CORS_ALLOWED_ORIGINS env var overrides.
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5180}
