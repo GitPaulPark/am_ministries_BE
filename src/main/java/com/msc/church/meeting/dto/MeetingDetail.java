@@ -27,6 +27,15 @@ public record MeetingDetail(
         Long audioSizeBytes,
         MeetingProcessingStatus processingStatus,
         String processingError,
-        LocalDateTime processedAt
+        LocalDateTime processedAt,
+        /**
+         * Whether the calling user can edit topics + action items + upload audio.
+         * Computed server-side using the same rule as
+         * {@link com.msc.church.meeting.MeetingTopicService#enforceWrite}: ADMIN/PASTOR
+         * always, plus active committee members of this meeting's committee. Avoids
+         * the frontend hard-coding canEdit=isStaff and hiding controls from secretaries
+         * who are allowed to edit.
+         */
+        boolean canEdit
 ) {
 }

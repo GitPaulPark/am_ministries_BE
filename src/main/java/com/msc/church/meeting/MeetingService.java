@@ -78,7 +78,18 @@ public class MeetingService {
         Meeting m = meetingRepository.findWithRefsById(id)
                 .orElseThrow(() -> new MeetingNotFoundException(id));
         enforceVisibility(m, caller);
-        return mapper.toMeetingDetail(m);
+        return mapper.toMeetingDetail(m, canEdit(m, caller));
+    }
+
+    /** Same rule as {@link MeetingTopicService#enforceWrite} — staff or active committee member. */
+    private boolean canEdit(Meeting m, AuthenticatedUser caller) {
+        if (isStaff(caller)) return true;
+        if (caller != null && caller.memberId() != null
+                && committeeMembershipRepository.existsByCommittee_IdAndMember_IdAndActiveTrue(
+                        m.getCommittee().getId(), caller.memberId())) {
+            return true;
+        }
+        return false;
     }
 
     // ---------- writes ----------

@@ -49,6 +49,24 @@ public class PublicHomeController {
         return ApiResponse.ok(swallowNotFound(sermonService::latest));
     }
 
+    /** A specific Sunday's bulletin — used when the elderly user taps "이번 주 주보". */
+    @GetMapping("/bulletin/by-date/{date}")
+    public ApiResponse<BulletinDetail> bulletinByDate(
+            @org.springframework.web.bind.annotation.PathVariable
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate date) {
+        // Service filters to published-only when caller is null, so this is safe to expose.
+        return ApiResponse.ok(swallowNotFound(() -> bulletinService.getByDate(date, null)));
+    }
+
+    /** A specific sermon detail — used by the public homepage card. */
+    @GetMapping("/sermon/{id}")
+    public ApiResponse<SermonDetail> sermon(
+            @org.springframework.web.bind.annotation.PathVariable Long id) {
+        return ApiResponse.ok(swallowNotFound(() -> sermonService.get(id, null)));
+    }
+
     /**
      * Newly-launched churches won't have a published bulletin yet — degrade
      * gracefully instead of returning 404 to a homepage card.

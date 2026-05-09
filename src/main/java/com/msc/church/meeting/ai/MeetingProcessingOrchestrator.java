@@ -8,6 +8,7 @@ import com.msc.church.meeting.MeetingProcessingJobRepository;
 import com.msc.church.meeting.MeetingProcessingStatus;
 import com.msc.church.meeting.MeetingRepository;
 import com.msc.church.meeting.MeetingTopic;
+import com.msc.church.meeting.MeetingTopicRepository;
 import com.msc.church.meeting.MeetingTopicStatus;
 import com.msc.church.member.Member;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ import java.util.List;
 public class MeetingProcessingOrchestrator {
 
     private final MeetingRepository meetingRepository;
+    private final MeetingTopicRepository topicRepository;
     private final MeetingProcessingJobRepository jobRepository;
     private final TranscriptionService transcriptionService;
     private final MeetingAnalysisService analysisService;
@@ -86,6 +88,12 @@ public class MeetingProcessingOrchestrator {
         MeetingProcessingJob job = jobRepository.findById(jobId).orElseThrow();
         job.setStatus(status);
         if (recordStartedAt) job.setStartedAt(LocalDateTime.now());
+        // Stamp completion timestamp on terminal status transitions so duration
+        // metrics work for successful runs as well as failures.
+        if (status == MeetingProcessingStatus.COMPLETE
+                || status == MeetingProcessingStatus.FAILED) {
+            job.setCompletedAt(LocalDateTime.now());
+        }
     }
 
     @Transactional
@@ -156,8 +164,21 @@ public class MeetingProcessingOrchestrator {
                 .mapToInt(t -> t.getOrderIdx() == null ? 0 : t.getOrderIdx())
                 .max().orElse(-1) + 1;
         for (var draft : result.topics()) {
+            // Cross-meeting parentTopic resolution: Claude returned an ID; verify it
+            // exists AND belongs to the same committee before linking. A bad ID just
+            // becomes null linkage rather than a dangling FK.
+            MeetingTopic parent = null;
+            if (draft.parentTopicId() != null) {
+                parent = topicRepository.findById(draft.parentTopicId())
+                        .filter(p -> p.getMeeting() != null
+                                && p.getMeeting().getCommittee() != null
+                                && p.getMeeting().getCommittee().getId()
+                                        .equals(m.getCommittee().getId()))
+                        .orElse(null);
+            }
             MeetingTopic topic = MeetingTopic.builder()
                     .meeting(m)
+                    .parentTopic(parent)
                     .title(draft.title())
                     .summary(draft.summary())
                     .decision(draft.decision())
@@ -166,10 +187,6 @@ public class MeetingProcessingOrchestrator {
                     .orderIdx(draft.orderIdx() != null ? draft.orderIdx() : nextOrderIdx++)
                     .aiGenerated(true)
                     .build();
-            // parentTopic linkage: ID came from Claude's analysis pointing at a prior
-            // topic. Validate by lookup; null on miss to avoid dangling FKs.
-            // (We don't pre-resolve here; the current schema only stores parent_topic_id
-            // when Claude actually points at a known topic — see materialization below.)
             m.getTopics().add(topic);
             topics.add(topic);
         }

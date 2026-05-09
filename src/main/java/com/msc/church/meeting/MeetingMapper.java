@@ -69,6 +69,10 @@ public class MeetingMapper {
     }
 
     public MeetingDetail toMeetingDetail(Meeting m) {
+        return toMeetingDetail(m, false);
+    }
+
+    public MeetingDetail toMeetingDetail(Meeting m, boolean canEdit) {
         if (m == null) return null;
         List<MeetingAttendeeResponse> atts = m.getAttendees().stream()
                 .map(a -> new MeetingAttendeeResponse(
@@ -98,7 +102,8 @@ public class MeetingMapper {
                 m.getAudioSizeBytes(),
                 m.getProcessingStatus(),
                 m.getProcessingError(),
-                m.getProcessedAt());
+                m.getProcessedAt(),
+                canEdit);
     }
 
     public MeetingTopicResponse toTopicResponse(MeetingTopic t) {

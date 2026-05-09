@@ -18,6 +18,8 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -105,8 +107,16 @@ public class MeetingAudioService {
         log.info("Meeting audio uploaded: meetingId={} bytes={} ext={} jobId={} lang={} byUser={}",
                 meetingId, file.getSize(), ext, job.getId(), language, callerId(caller));
 
-        // Fire-and-forget — proxied @Async on a separate bean.
-        orchestrator.processAsync(meetingId, job.getId(), target, language);
+        // Defer the async kickoff until the surrounding transaction commits.
+        // Otherwise the worker thread might run findById(meetingId) before the
+        // INSERT is visible to other connections and silently strand the job
+        // at status=QUEUED with no error trail.
+        final long jobId = job.getId();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() {
+                orchestrator.processAsync(meetingId, jobId, target, language);
+            }
+        });
 
         return toResponse(m, job);
     }

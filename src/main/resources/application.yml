@@ -83,7 +83,11 @@ church:
 msc:
   ai:
     enabled: ${MSC_AI_ENABLED:false}
-    uploads-dir: ${UPLOADS_DIR:uploads}
+    # Audio MUST live outside `app.uploads.dir` — the latter is served by WebConfig's
+    # /uploads/** static handler with permitAll. We never want a board meeting's
+    # raw audio at a guessable public URL. MeetingAudioController streams audio
+    # back through an authenticated controller endpoint instead.
+    uploads-dir: ${PRIVATE_UPLOADS_DIR:private-uploads}
     max-audio-mb: 200
     prior-meetings-context: 8
     default-language: ko
