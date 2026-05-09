@@ -55,4 +55,18 @@ public final class MemberSpecifications {
             return cb.and(preds.toArray(new Predicate[0]));
         };
     }
+
+    /** Same as {@link #inPrimaryCell} but matches any of the supplied cell ids. */
+    public static Specification<Member> inAnyPrimaryCell(java.util.Collection<Long> cellIds) {
+        if (cellIds == null || cellIds.isEmpty()) return (root, query, cb) -> cb.conjunction();
+        return (root, query, cb) -> {
+            if (query != null) query.distinct(true);
+            Join<Member, CellMembership> mem = root.join("memberships");
+            return cb.and(
+                    cb.equal(mem.get("primary"), true),
+                    cb.equal(mem.get("active"), true),
+                    mem.get("cell").get("id").in(cellIds)
+            );
+        };
+    }
 }

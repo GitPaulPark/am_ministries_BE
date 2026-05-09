@@ -65,3 +65,11 @@ cors:
   # 5173 is Vite's default; 5174 is auto-picked when 5173 is busy; 5180 is what
   # vite.config.js pins this project to. CORS_ALLOWED_ORIGINS env var overrides.
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:5174,http://localhost:5180}
+
+# Newcomer-graduation scheduler. Defaults match the module spec; override in tests
+# (scheduler-enabled: false) or production env if you want a different cadence.
+church:
+  newcomer:
+    graduation-after-weeks: 8
+    suggestion-cron: "0 0 9 ? * MON"
+    scheduler-enabled: true

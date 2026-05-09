@@ -15,4 +15,6 @@ public interface CellRepository extends JpaRepository<Cell, Long> {
     List<Cell> findByActiveTrue(Sort sort);
 
     List<Cell> findByActiveTrueAndType(CellType type, Sort sort);
+
+    List<Cell> findByLeader_Id(Long memberId);
 }

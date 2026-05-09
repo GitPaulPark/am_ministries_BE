@@ -2,6 +2,8 @@ package com.msc.church.member;
 
 import com.msc.church.auth.AuthenticatedUser;
 import com.msc.church.auth.Role;
+import com.msc.church.cell.Cell;
+import com.msc.church.cell.CellMembershipRepository;
 import com.msc.church.cell.CellMembershipService;
 import com.msc.church.cell.CellRepository;
 import com.msc.church.common.BusinessException;
@@ -19,6 +21,8 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 /**
  * Canonical module service. All future modules should mirror this shape:
  * <ul>
@@ -35,6 +39,7 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final CellRepository cellRepository;
+    private final CellMembershipRepository cellMembershipRepository;
     private final CellMembershipService cellMembershipService;
     private final MemberMapper memberMapper;
 
@@ -48,11 +53,14 @@ public class MemberService {
                 .and(MemberSpecifications.hasRoleLabel(filter.roleLabel()))
                 .and(MemberSpecifications.inPrimaryCell(filter.cellId()));
 
-        // LEADER scoping: restrict to members of their own primary cell.
-        // Implementation defer until Cells module ships full membership APIs (Week 5);
-        // for now only ADMIN / PASTOR reach this code (controller-level guard).
+        // LEADER scoping: restrict the result set to members whose primary cell is
+        // one of the cells the caller leads. A LEADER who leads no cell sees nobody.
         if (caller != null && caller.role() == Role.LEADER) {
-            spec = spec.and(MemberSpecifications.inPrimaryCell(filter.cellId()));
+            List<Long> ledCellIds = leaderLedCellIds(caller);
+            if (ledCellIds.isEmpty()) {
+                return Page.empty(pageable);
+            }
+            spec = spec.and(MemberSpecifications.inAnyPrimaryCell(ledCellIds));
         }
 
         return memberRepository.findAll(spec, pageable).map(memberMapper::toSummary);
@@ -194,14 +202,30 @@ public class MemberService {
                 }
             }
             case LEADER -> {
-                // Self always OK; cross-member same-cell scoping lands in Week 5.
                 if (caller.memberId() != null && caller.memberId().equals(target.getId())) {
-                    return;
+                    return; // self
                 }
-                // Until cell scoping ships, block LEADER cross-member to be safe.
-                throw new BusinessException(ErrorCode.FORBIDDEN);
+                List<Long> ledCellIds = leaderLedCellIds(caller);
+                if (ledCellIds.isEmpty()) {
+                    throw new BusinessException(ErrorCode.FORBIDDEN);
+                }
+                boolean targetInLedCell = cellMembershipRepository
+                        .findByMember_IdAndPrimaryTrue(target.getId())
+                        .map(cm -> cm.getCell() != null && ledCellIds.contains(cm.getCell().getId()))
+                        .orElse(false);
+                if (!targetInLedCell) {
+                    throw new BusinessException(ErrorCode.FORBIDDEN);
+                }
             }
         }
+    }
+
+    /** Cell ids whose {@code leader_member_id} matches the caller's member id. */
+    private List<Long> leaderLedCellIds(AuthenticatedUser caller) {
+        if (caller == null || caller.memberId() == null) return List.of();
+        return cellRepository.findByLeader_Id(caller.memberId()).stream()
+                .map(Cell::getId)
+                .toList();
     }
 
     private boolean canSeePastorNotes(AuthenticatedUser caller) {

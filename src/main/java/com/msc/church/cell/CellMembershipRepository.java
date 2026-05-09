@@ -14,6 +14,27 @@ public interface CellMembershipRepository extends JpaRepository<CellMembership, 
 
     List<CellMembership> findByMember_IdAndActiveTrue(Long memberId);
 
+    /** Roster of a cell (active members only). */
+    List<CellMembership> findByCell_IdAndActiveTrue(Long cellId);
+
+    /** Roster including former members (admin views). */
+    List<CellMembership> findByCell_Id(Long cellId);
+
+    long countByCell_IdAndActiveTrue(Long cellId);
+
+    boolean existsByMember_IdAndCell_IdAndActiveTrue(Long memberId, Long cellId);
+
+    /**
+     * "Are there any *primary* memberships still attached to this cell?". Used to
+     * block deactivation of a cell that still owns primary references.
+     */
+    boolean existsByCell_IdAndPrimaryTrueAndActiveTrue(Long cellId);
+
+    /** Newcomer-graduation scheduler scope: active memberships in a NEWCOMER cell. */
+    @Query("SELECT cm FROM CellMembership cm WHERE cm.cell.id = :cellId "
+            + "AND cm.active = true AND cm.primary = true")
+    List<CellMembership> findActivePrimaryByCellId(@Param("cellId") Long cellId);
+
     @Modifying
     @Query("UPDATE CellMembership cm SET cm.primary = false " +
            "WHERE cm.member.id = :memberId AND cm.primary = true")

@@ -2,6 +2,7 @@ package com.msc.church.member;
 
 import com.msc.church.auth.AuthenticatedUser;
 import com.msc.church.auth.Role;
+import com.msc.church.cell.CellMembershipRepository;
 import com.msc.church.cell.CellMembershipService;
 import com.msc.church.cell.CellRepository;
 import com.msc.church.common.BusinessException;
@@ -49,6 +50,7 @@ class MemberServiceTest {
 
     @Mock MemberRepository memberRepository;
     @Mock CellRepository cellRepository;
+    @Mock CellMembershipRepository cellMembershipRepository;
     @Mock CellMembershipService cellMembershipService;
     @Mock MemberMapper memberMapper;
 
