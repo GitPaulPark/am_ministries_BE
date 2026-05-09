@@ -56,6 +56,14 @@ public class ActionItem extends BaseEntity {
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
+    @Column(name = "ai_generated", nullable = false)
+    private boolean aiGenerated;
+
+    /** Optional link to the meeting topic this action item came out of (AI-derived). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "topic_id")
+    private MeetingTopic topic;
+
     @Column(name = "order_idx", nullable = false)
     private Integer orderIdx;
 }

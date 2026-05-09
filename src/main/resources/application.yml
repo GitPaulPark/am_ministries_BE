@@ -19,8 +19,10 @@ spring:
     baseline-on-migrate: false
   servlet:
     multipart:
-      max-file-size: 100MB
-      max-request-size: 100MB
+      # 200MB ceiling lets a 60-min iPhone Voice Memo (.m4a) land — limit also
+      # enforced (cheaper) at msc.ai.max-audio-mb before transferTo runs.
+      max-file-size: 200MB
+      max-request-size: 200MB
   messages:
     basename: i18n/messages
     encoding: UTF-8
@@ -73,3 +75,25 @@ church:
     graduation-after-weeks: 8
     suggestion-cron: "0 0 9 ? * MON"
     scheduler-enabled: true
+
+# AI meeting pipeline (audio → transcript → topics).
+# Disabled by default — opt in by setting MSC_AI_ENABLED=true and providing API
+# keys. With enabled=true but no keys, the upload endpoint stays available; the
+# orchestrator records a "not configured" failure so the UI can prompt for setup.
+msc:
+  ai:
+    enabled: ${MSC_AI_ENABLED:false}
+    uploads-dir: ${UPLOADS_DIR:uploads}
+    max-audio-mb: 200
+    prior-meetings-context: 8
+    default-language: ko
+    groq:
+      api-key: ${GROQ_API_KEY:}
+      base-url: https://api.groq.com/openai/v1
+      model: whisper-large-v3
+      timeout-seconds: 600
+    anthropic:
+      api-key: ${ANTHROPIC_API_KEY:}
+      model: claude-opus-4-7
+      max-tokens: 16000
+      effort: high

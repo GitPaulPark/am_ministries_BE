@@ -9,6 +9,7 @@ import com.msc.church.meeting.dto.CommitteeSummary;
 import com.msc.church.meeting.dto.MeetingAttendeeResponse;
 import com.msc.church.meeting.dto.MeetingDetail;
 import com.msc.church.meeting.dto.MeetingSummary;
+import com.msc.church.meeting.dto.MeetingTopicResponse;
 import com.msc.church.meeting.dto.MemberRef;
 import com.msc.church.member.Member;
 import org.springframework.stereotype.Component;
@@ -80,13 +81,44 @@ public class MeetingMapper {
         List<ActionItemResponse> items = m.getActionItems().stream()
                 .map(a -> toActionItemResponse(a, m))
                 .toList();
+        List<MeetingTopicResponse> topics = m.getTopics().stream()
+                .map(this::toTopicResponse)
+                .toList();
         return new MeetingDetail(
                 m.getId(), toCommitteeRef(m.getCommittee()),
                 m.getMeetingDate(), m.getTitle(),
                 memberRef(m.getPresider()),
                 m.getAgenda(), m.getMinutes(),
                 m.getStatus(), m.getPublishedAt(),
-                atts, items);
+                atts, items,
+                topics,
+                m.getAiSummary(),
+                m.getAudioUrl(),
+                m.getAudioDurationSec(),
+                m.getAudioSizeBytes(),
+                m.getProcessingStatus(),
+                m.getProcessingError(),
+                m.getProcessedAt());
+    }
+
+    public MeetingTopicResponse toTopicResponse(MeetingTopic t) {
+        if (t == null) return null;
+        MeetingTopic parent = t.getParentTopic();
+        Meeting parentMeeting = parent == null ? null : parent.getMeeting();
+        return new MeetingTopicResponse(
+                t.getId(),
+                t.getMeeting() == null ? null : t.getMeeting().getId(),
+                parent == null ? null : parent.getId(),
+                parentMeeting == null ? null : parentMeeting.getId(),
+                parentMeeting == null ? null : parentMeeting.getMeetingDate(),
+                t.getTitle(),
+                t.getSummary(),
+                t.getDecision(),
+                t.getStatus(),
+                t.getComment(),
+                t.getTranscriptExcerpt(),
+                t.getOrderIdx(),
+                t.isAiGenerated());
     }
 
     public ActionItemResponse toActionItemResponse(ActionItem a, Meeting m) {

@@ -49,11 +49,46 @@ public class Meeting extends BaseEntity {
     @Column(name = "title", length = 255)
     private String title;
 
+    /**
+     * Free-text agenda. Used for manually-authored meetings; left null when AI
+     * populates {@link #topics} as the structured source of truth.
+     */
     @Column(name = "agenda", columnDefinition = "LONGTEXT")
     private String agenda;
 
     @Column(name = "minutes", columnDefinition = "LONGTEXT")
     private String minutes;
+
+    // ---- AI / audio fields (V3) ----
+
+    @Column(name = "audio_url", length = 500)
+    private String audioUrl;
+
+    @Column(name = "audio_size_bytes")
+    private Long audioSizeBytes;
+
+    @Column(name = "audio_duration_sec")
+    private Integer audioDurationSec;
+
+    @Column(name = "transcript", columnDefinition = "LONGTEXT")
+    private String transcript;
+
+    /** Claude rollup, formatted Korean summary in the user's preferred ▪-bullet style. */
+    @Column(name = "ai_summary", columnDefinition = "LONGTEXT")
+    private String aiSummary;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "processing_status", nullable = false, length = 20)
+    @Builder.Default
+    private MeetingProcessingStatus processingStatus = MeetingProcessingStatus.NONE;
+
+    @Column(name = "processing_error", columnDefinition = "TEXT")
+    private String processingError;
+
+    @Column(name = "processed_at")
+    private LocalDateTime processedAt;
+
+    // ---- Status / publishing ----
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
@@ -61,6 +96,8 @@ public class Meeting extends BaseEntity {
 
     @Column(name = "published_at")
     private LocalDateTime publishedAt;
+
+    // ---- Children ----
 
     @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @BatchSize(size = 50)
@@ -73,10 +110,24 @@ public class Meeting extends BaseEntity {
     @Builder.Default
     private List<ActionItem> actionItems = new ArrayList<>();
 
+    @OneToMany(mappedBy = "meeting", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OrderBy("orderIdx ASC")
+    @BatchSize(size = 50)
+    @Builder.Default
+    private List<MeetingTopic> topics = new ArrayList<>();
+
     public void replaceAttendees(List<MeetingAttendee> next) {
         this.attendees.clear();
         if (next != null) {
             for (MeetingAttendee a : next) { a.setMeeting(this); this.attendees.add(a); }
+        }
+    }
+
+    /** Used by the AI pipeline to swap out auto-generated topics on re-processing. */
+    public void replaceTopics(List<MeetingTopic> next) {
+        this.topics.clear();
+        if (next != null) {
+            for (MeetingTopic t : next) { t.setMeeting(this); this.topics.add(t); }
         }
     }
 }

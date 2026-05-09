@@ -23,4 +23,8 @@ public interface MeetingRepository extends JpaRepository<Meeting, Long> {
 
     Page<Meeting> findByCommittee_IdAndStatusOrderByMeetingDateDesc(
             Long committeeId, MeetingStatus status, Pageable pageable);
+
+    /** Prior meetings for cross-meeting recurring-topic context (newest first). */
+    Page<Meeting> findByCommittee_IdAndMeetingDateLessThanOrderByMeetingDateDesc(
+            Long committeeId, LocalDate meetingDate, Pageable pageable);
 }

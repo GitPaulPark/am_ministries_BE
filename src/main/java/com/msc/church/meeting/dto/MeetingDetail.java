@@ -1,5 +1,6 @@
 package com.msc.church.meeting.dto;
 
+import com.msc.church.meeting.MeetingProcessingStatus;
 import com.msc.church.meeting.MeetingStatus;
 
 import java.time.LocalDate;
@@ -17,6 +18,15 @@ public record MeetingDetail(
         MeetingStatus status,
         LocalDateTime publishedAt,
         List<MeetingAttendeeResponse> attendees,
-        List<ActionItemResponse> actionItems
+        List<ActionItemResponse> actionItems,
+        // ---- AI fields (V3) ----
+        List<MeetingTopicResponse> topics,
+        String aiSummary,
+        String audioUrl,
+        Integer audioDurationSec,
+        Long audioSizeBytes,
+        MeetingProcessingStatus processingStatus,
+        String processingError,
+        LocalDateTime processedAt
 ) {
 }

@@ -47,7 +47,8 @@ public enum ErrorCode {
     MEETING_NOT_FOUND(HttpStatus.NOT_FOUND, "error.meeting.not_found"),
     DUPLICATE_MEETING_DATE(HttpStatus.CONFLICT, "error.meeting.duplicate_date"),
     MEETING_ALREADY_PUBLISHED(HttpStatus.CONFLICT, "error.meeting.already_published"),
-    ACTION_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "error.action_item.not_found");
+    ACTION_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "error.action_item.not_found"),
+    MEETING_TOPIC_NOT_FOUND(HttpStatus.NOT_FOUND, "error.meeting_topic.not_found");
 
     private final HttpStatus status;
     private final String messageKey;
