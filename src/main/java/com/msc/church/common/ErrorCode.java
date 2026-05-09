@@ -48,7 +48,13 @@ public enum ErrorCode {
     DUPLICATE_MEETING_DATE(HttpStatus.CONFLICT, "error.meeting.duplicate_date"),
     MEETING_ALREADY_PUBLISHED(HttpStatus.CONFLICT, "error.meeting.already_published"),
     ACTION_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "error.action_item.not_found"),
-    MEETING_TOPIC_NOT_FOUND(HttpStatus.NOT_FOUND, "error.meeting_topic.not_found");
+    MEETING_TOPIC_NOT_FOUND(HttpStatus.NOT_FOUND, "error.meeting_topic.not_found"),
+
+    // --- AI meeting pipeline ---
+    AI_DISABLED(HttpStatus.BAD_REQUEST, "error.ai.disabled"),
+    AUDIO_TOO_LARGE(HttpStatus.BAD_REQUEST, "error.audio.too_large"),
+    AUDIO_FORMAT_UNSUPPORTED(HttpStatus.BAD_REQUEST, "error.audio.format_unsupported"),
+    AUDIO_IO(HttpStatus.BAD_REQUEST, "error.audio.io");
 
     private final HttpStatus status;
     private final String messageKey;

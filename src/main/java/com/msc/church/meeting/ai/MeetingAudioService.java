@@ -58,7 +58,7 @@ public class MeetingAudioService {
                                             String languageCodeOverride,
                                             AuthenticatedUser caller) throws IOException {
         if (!props.isEnabled()) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "ai_disabled");
+            throw new BusinessException(ErrorCode.AI_DISABLED);
         }
         Meeting m = meetingRepository.findById(meetingId)
                 .orElseThrow(() -> new MeetingNotFoundException(meetingId));
@@ -69,23 +69,29 @@ public class MeetingAudioService {
         }
         long maxBytes = (long) props.getMaxAudioMb() * ONE_MB;
         if (file.getSize() > maxBytes) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "audio_too_large");
+            throw new BusinessException(ErrorCode.AUDIO_TOO_LARGE, props.getMaxAudioMb());
         }
 
         String original = file.getOriginalFilename();
         String ext = extensionOf(original);
         if (!"m4a".equals(ext) && !"mp3".equals(ext)) {
-            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "audio_format");
+            throw new BusinessException(ErrorCode.AUDIO_FORMAT_UNSUPPORTED, ext);
         }
 
         Path base = Paths.get(props.getUploadsDir(), "meetings", String.valueOf(meetingId))
                 .toAbsolutePath().normalize();
-        Files.createDirectories(base);
-        // Always store as audio.{ext} — overwrites any prior upload deterministically.
         Path target = base.resolve("audio." + ext);
-        // Wipe any opposite-extension leftover so we never end up with two source files.
-        cleanupOtherExtension(base, ext);
-        file.transferTo(target);
+        try {
+            Files.createDirectories(base);
+            // Always store as audio.{ext} — overwrites any prior upload deterministically.
+            // Wipe any opposite-extension leftover so we never end up with two source files.
+            cleanupOtherExtension(base, ext);
+            file.transferTo(target);
+        } catch (IOException e) {
+            log.warn("Failed to write meeting audio: meetingId={} target={} err={}",
+                    meetingId, target, e.getMessage());
+            throw new BusinessException(ErrorCode.AUDIO_IO);
+        }
 
         m.setAudioUrl("/api/v1/meetings/" + meetingId + "/audio");
         m.setAudioSizeBytes(file.getSize());
