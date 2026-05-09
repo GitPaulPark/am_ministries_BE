@@ -17,7 +17,6 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HexFormat;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -30,6 +29,8 @@ import java.util.UUID;
 public class JwtService {
 
     private static final String CLAIM_ROLE = "role";
+    private static final String CLAIM_MEMBER_ID = "mid";
+    private static final String CLAIM_EMAIL = "email";
     private static final String CLAIM_TYPE = "typ";
     private static final String TYPE_ACCESS = "access";
     private static final String TYPE_REFRESH = "refresh";
@@ -47,18 +48,20 @@ public class JwtService {
         this.signingKey = Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateAccessToken(Long userId, String email, String role) {
+    public String generateAccessToken(Long userId, String email, Role role, Long memberId) {
         Instant now = Instant.now();
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .issuer(props.issuer())
                 .subject(String.valueOf(userId))
-                .claim("email", email)
-                .claim(CLAIM_ROLE, role)
+                .claim(CLAIM_EMAIL, email)
+                .claim(CLAIM_ROLE, role.name())
                 .claim(CLAIM_TYPE, TYPE_ACCESS)
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plus(props.accessTokenTtl())))
-                .signWith(signingKey, Jwts.SIG.HS256)
-                .compact();
+                .expiration(Date.from(now.plus(props.accessTokenTtl())));
+        if (memberId != null) {
+            builder.claim(CLAIM_MEMBER_ID, memberId);
+        }
+        return builder.signWith(signingKey, Jwts.SIG.HS256).compact();
     }
 
     /**
@@ -99,9 +102,18 @@ public class JwtService {
                 throw new BusinessException(ErrorCode.TOKEN_INVALID);
             }
             Long userId = Long.valueOf(claims.getSubject());
-            String email = claims.get("email", String.class);
-            String role = claims.get(CLAIM_ROLE, String.class);
-            return new ParsedToken(userId, email, role);
+            String email = claims.get(CLAIM_EMAIL, String.class);
+            Role role = null;
+            String roleName = claims.get(CLAIM_ROLE, String.class);
+            if (roleName != null) {
+                role = Role.valueOf(roleName);
+            }
+            Long memberId = null;
+            Object midClaim = claims.get(CLAIM_MEMBER_ID);
+            if (midClaim instanceof Number n) {
+                memberId = n.longValue();
+            }
+            return new ParsedToken(userId, email, role, memberId);
         } catch (ExpiredJwtException e) {
             throw new BusinessException(ErrorCode.TOKEN_EXPIRED);
         } catch (JwtException | IllegalArgumentException e) {
@@ -130,12 +142,6 @@ public class JwtService {
         }
     }
 
-    public record ParsedToken(Long userId, String email, String role) {
-    }
-
-    // unused but kept so future modules don't reach for raw Map building
-    @SuppressWarnings("unused")
-    private Map<String, Object> empty() {
-        return Map.of();
+    public record ParsedToken(Long userId, String email, Role role, Long memberId) {
     }
 }

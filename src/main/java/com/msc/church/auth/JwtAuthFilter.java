@@ -1,9 +1,9 @@
 package com.msc.church.auth;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.msc.church.common.ApiResponse;
 import com.msc.church.common.BusinessException;
 import com.msc.church.common.ErrorCode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,20 +13,20 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * Reads {@code Authorization: Bearer <token>}, verifies it, and populates the
- * SecurityContext with a {@code UsernamePasswordAuthenticationToken} carrying the role.
- * Auth endpoints (under {@code /api/v1/auth/}) are skipped — the filter only enforces
- * presence of a valid token elsewhere when the SecurityFilterChain demands it.
+ * SecurityContext with the {@link AuthenticatedUser} principal so downstream code
+ * can call {@link SecurityUtil#currentUser()} without another DB hit.
+ *
+ * <p>Auth endpoints (under {@code /api/v1/auth/}) are skipped — the filter only
+ * enforces presence of a valid token elsewhere when the SecurityFilterChain demands it.
  */
 @Slf4j
 @Component
@@ -53,9 +53,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         String token = header.substring(BEARER_PREFIX.length()).trim();
         try {
             JwtService.ParsedToken parsed = jwtService.parseAccessToken(token);
-            var authority = new SimpleGrantedAuthority("ROLE_" + parsed.role());
+            if (parsed.role() == null) {
+                throw new BusinessException(ErrorCode.TOKEN_INVALID);
+            }
+            AuthenticatedUser principal = new AuthenticatedUser(
+                    parsed.userId(),
+                    parsed.email(),
+                    parsed.memberId(),
+                    parsed.role(),
+                    true /* enabled — JWT-only check; revocation requires re-login */
+            );
             var authentication = new UsernamePasswordAuthenticationToken(
-                    parsed.userId(), null, List.of(authority));
+                    principal, null, principal.getAuthorities());
             authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
             SecurityContextHolder.getContext().setAuthentication(authentication);
             chain.doFilter(request, response);
@@ -68,7 +77,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/api/v1/auth/")
+        // Only the public auth endpoints skip the filter; /me and /logout still
+        // run through it so SecurityUtil.currentUser() is populated.
+        return path.equals("/api/v1/auth/login")
+                || path.equals("/api/v1/auth/refresh")
                 || path.startsWith("/swagger-ui")
                 || path.startsWith("/v3/api-docs")
                 || path.equals("/actuator/health");
@@ -78,8 +90,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         response.setStatus(code.getStatus().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding("UTF-8");
-        // Message resolution is handled centrally for thrown errors; here we send the
-        // error code only, the frontend localizes.
+        // Frontend localizes from errorCode; we don't have a Locale here cheaply.
         var body = ApiResponse.error(code, code.name());
         objectMapper.writeValue(response.getWriter(), body);
     }
