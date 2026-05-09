@@ -102,6 +102,22 @@ public class AuthService {
         return toUserResponse(user);
     }
 
+    /**
+     * Verifies the current password, sets a new BCrypt-hashed one, and revokes all
+     * refresh tokens so the user has to re-authenticate on other devices.
+     */
+    @Transactional
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            throw new BadCredentialsException("invalid");
+        }
+        user.setPasswordHash(passwordEncoder.encode(newPassword));
+        refreshTokenRepository.revokeAllForUser(userId);
+        log.info("Password changed: userId={}", userId);
+    }
+
     // -----------------------------------------------------------------
 
     private TokenBundle issueTokens(User user) {
