@@ -1,0 +1,41 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# IDE
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+.factorypath
+nbproject/private/
+nbbuild/
+nbdist/
+.nb-gradle/
+
+# Spring Boot
+HELP.md
+*.log
+logs/
+build/
+out/
+
+# Mac
+.DS_Store
+
+# Env / secrets
+.env
+.env.local
+*.local
+
+# Uploads (V1 local disk storage)
+uploads/
+
+# Generated MapStruct sources
+generated-sources/
