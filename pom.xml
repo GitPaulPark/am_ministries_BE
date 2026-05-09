@@ -74,6 +74,14 @@
             <artifactId>flyway-mysql</artifactId>
         </dependency>
 
+        <!-- Apache Commons CSV — used by the member CSV import endpoint. Properly
+             handles quoted fields, embedded commas, and BOMs (some Excel exports). -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.11.0</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

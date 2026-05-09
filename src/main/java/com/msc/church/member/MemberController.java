@@ -4,6 +4,7 @@ import com.msc.church.auth.SecurityUtil;
 import com.msc.church.common.ApiResponse;
 import com.msc.church.member.dto.MemberCreateRequest;
 import com.msc.church.member.dto.MemberDetail;
+import com.msc.church.member.dto.MemberImportResult;
 import com.msc.church.member.dto.MemberSelfUpdateRequest;
 import com.msc.church.member.dto.MemberSummary;
 import com.msc.church.member.dto.MemberUpdateRequest;
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1/members")
@@ -29,6 +33,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class MemberController {
 
     private final MemberService memberService;
+    private final MemberImportService memberImportService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','PASTOR','LEADER')")
@@ -73,5 +78,11 @@ public class MemberController {
     public ApiResponse<Void> delete(@PathVariable Long id) {
         memberService.delete(id);
         return ApiResponse.ok();
+    }
+
+    @PostMapping("/import")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<MemberImportResult> importCsv(@RequestParam("file") MultipartFile file) throws IOException {
+        return ApiResponse.ok(memberImportService.importCsv(file));
     }
 }
