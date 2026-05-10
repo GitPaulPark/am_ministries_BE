@@ -32,9 +32,16 @@ import java.util.regex.Pattern;
 @Component
 public class SermonPdfParser {
 
-    /** "1. Do I Love Jesus? 나는 예수님을 사랑하는가?" — English headline + Korean headline. */
+    /** "1. Do I Love Jesus? 나는 예수님을 사랑하는가?" — English headline + Korean headline.
+     *  Both groups capped at 120 chars so a paragraph that bled into the heading
+     *  (PDFs sometimes drop the blank-line separator between heading and the next
+     *  verse) doesn't get swallowed as a multi-thousand-char title. */
     private static final Pattern SECTION_HEADING = Pattern.compile(
-            "^\\s*(\\d+)\\.\\s+([^가-힣]+?)\\s+([\\p{IsHangul}].+?)\\s*$");
+            "^\\s*(\\d+)\\.\\s+([^가-힣]{1,120}?)\\s+([\\p{IsHangul}][^\\n]{0,119})\\s*$");
+
+    /** A line that starts a new section. Used by {@link #splitIntoParagraphs} to break
+     *  a paragraph even when no blank line separator preceded it. */
+    private static final Pattern SECTION_HEADING_START = Pattern.compile("^\\s*\\d+\\.\\s+\\S");
 
     /** "John 14:15" / "Romans 8:23" / "1 Corinthians 13:3" — English Bible reference. */
     private static final Pattern EN_VERSE = Pattern.compile(
@@ -156,16 +163,39 @@ public class SermonPdfParser {
 
     private List<String> splitIntoParagraphs(String text) {
         // PDFBox's PDFTextStripper inserts a hard '\n' at every visual line wrap. A
-        // paragraph break is a blank line. So: split on blank lines, then within each
-        // chunk join lines with a single space.
+        // paragraph break is normally a blank line. Three extra rules:
+        //   1) skip the "1 / 8" page-number footer.
+        //   2) a line that starts a numbered section heading (^\d+\.\s+\S) is its own
+        //      paragraph — even when no blank line precedes it. PDFs sometimes drop
+        //      the heading↔next-verse separator.
+        //   3) when an English paragraph is immediately followed by its Korean
+        //      translation (no blank line between, the 2026.05.10 source PDF does
+        //      this), the splitter would otherwise merge them into one chunk and
+        //      majority-classify by language. Detect a line whose dominant script
+        //      differs from the buffer's current script and break there.
         List<String> out = new ArrayList<>();
         StringBuilder buf = new StringBuilder();
+        String bufLang = null; // 'en' / 'kr' / null when buf is empty
         for (String line : text.split("\n")) {
             String trimmed = line.trim();
-            if (PAGE_NUM.matcher(trimmed).matches()) continue; // strip "1 / 8"
+            if (PAGE_NUM.matcher(trimmed).matches()) continue;
             if (trimmed.isEmpty()) {
                 flush(buf, out);
+                bufLang = null;
                 continue;
+            }
+            if (SECTION_HEADING_START.matcher(trimmed).find()) {
+                flush(buf, out);
+                bufLang = null;
+                out.add(trimmed);
+                continue;
+            }
+            String lineLang = detectLanguage(trimmed);
+            if (bufLang != null && !bufLang.equals(lineLang)) {
+                flush(buf, out);
+                bufLang = lineLang;
+            } else if (bufLang == null) {
+                bufLang = lineLang;
             }
             if (buf.length() > 0) buf.append(' ');
             buf.append(trimmed);

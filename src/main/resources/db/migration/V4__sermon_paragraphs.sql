@@ -43,6 +43,5 @@ CREATE TABLE sermon_paragraphs (
 -- toggle entirely. transcript_pdf_url is the original PDF served behind auth
 -- — the reader's "원본 PDF 보기" fallback always points here.
 ALTER TABLE sermons
-  ADD COLUMN transcript_pdf_url     VARCHAR(500) NULL AFTER audio_url,
-  ADD COLUMN transcript_single_lang BOOLEAN NULL AFTER transcript_pdf_url
-                                    COMMENT 'NULL = no PDF parsed yet';
+  ADD COLUMN transcript_pdf_url     VARCHAR(500) NULL                                              AFTER audio_url,
+  ADD COLUMN transcript_single_lang BOOLEAN      NULL COMMENT 'NULL = no PDF parsed yet'           AFTER transcript_pdf_url;

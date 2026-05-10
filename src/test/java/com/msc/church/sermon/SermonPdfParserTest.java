@@ -129,6 +129,34 @@ class SermonPdfParserTest {
     }
 
     @Test
+    void splitsAdjacentEnglishAndKoreanParagraphsEvenWithoutBlankLine() {
+        // The 2026.05.10 source PDF doesn't put a blank line between an English
+        // paragraph and its Korean translation — PDFBox emits them as adjacent
+        // lines. Without a language-aware splitter, both get joined into one
+        // chunk and majority-classified as English. Verify they end up split.
+        String text = """
+                Who is this commandment for? This is a command Jesus has given us.
+                That is clear. But who is it for? Did He say this for His own benefit?
+                이 계명은 누구를 위한 것일까요? 분명히 이것은 예수님께서 우리에게 주신 명령입니다.
+                그 점은 분명합니다. 그렇다면 이 말씀은 누구를 위한 것입니까?
+
+                He created this world.
+                """;
+
+        List<SermonParagraph> out = parser.parseText(text, sermon);
+
+        assertThat(out).hasSize(3);
+        assertThat(out.get(0).getLanguage()).isEqualTo("en");
+        assertThat(out.get(0).getText()).contains("Who is this commandment for?");
+        assertThat(out.get(1).getLanguage()).isEqualTo("kr");
+        assertThat(out.get(1).getText()).contains("이 계명은 누구를 위한 것일까요?");
+        assertThat(out.get(2).getLanguage()).isEqualTo("en");
+        // Adjacent EN/KR pair gets a shared pair_key.
+        assertThat(out.get(0).getPairKey()).isNotNull();
+        assertThat(out.get(0).getPairKey()).isEqualTo(out.get(1).getPairKey());
+    }
+
+    @Test
     void languageDetectionFallsBackToEnglishOnEmptyText() {
         // Direct probe of the heuristic — purely-Latin text returns 'en'.
         assertThat(parser.detectLanguage("Hello world")).isEqualTo("en");

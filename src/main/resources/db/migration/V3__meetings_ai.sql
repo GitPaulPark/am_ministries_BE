@@ -3,18 +3,18 @@ SET NAMES utf8mb4;
 -- =========================================================
 -- meetings: add AI fields (audio, transcript, processing status)
 -- =========================================================
+-- MySQL ALTER TABLE puts COMMENT inside column_definition (before AFTER) — putting
+-- it after AFTER is a 1064 syntax error. Most columns here drop COMMENT entirely
+-- since the docstrings on the entities cover the same ground.
 ALTER TABLE meetings
-  ADD COLUMN audio_url          VARCHAR(500) NULL  AFTER minutes,
-  ADD COLUMN audio_size_bytes   BIGINT       NULL  AFTER audio_url,
-  ADD COLUMN audio_duration_sec INT          NULL  AFTER audio_size_bytes,
-  ADD COLUMN transcript         LONGTEXT     NULL  AFTER audio_duration_sec
-                                COMMENT 'Whisper output, full text',
-  ADD COLUMN ai_summary         LONGTEXT     NULL  AFTER transcript
-                                COMMENT 'Claude rollup, formatted Korean summary',
-  ADD COLUMN processing_status  VARCHAR(20)  NOT NULL DEFAULT 'NONE' AFTER ai_summary
-                                COMMENT 'NONE, QUEUED, TRANSCRIBING, ANALYZING, COMPLETE, FAILED',
-  ADD COLUMN processing_error   TEXT         NULL  AFTER processing_status,
-  ADD COLUMN processed_at       DATETIME     NULL  AFTER processing_error,
+  ADD COLUMN audio_url          VARCHAR(500) NULL                                       AFTER minutes,
+  ADD COLUMN audio_size_bytes   BIGINT       NULL                                       AFTER audio_url,
+  ADD COLUMN audio_duration_sec INT          NULL                                       AFTER audio_size_bytes,
+  ADD COLUMN transcript         LONGTEXT     NULL COMMENT 'Whisper output, full text'  AFTER audio_duration_sec,
+  ADD COLUMN ai_summary         LONGTEXT     NULL COMMENT 'Claude rollup'              AFTER transcript,
+  ADD COLUMN processing_status  VARCHAR(20)  NOT NULL DEFAULT 'NONE'                    AFTER ai_summary,
+  ADD COLUMN processing_error   TEXT         NULL                                       AFTER processing_status,
+  ADD COLUMN processed_at       DATETIME     NULL                                       AFTER processing_error,
   ADD KEY idx_meetings_processing_status (processing_status);
 
 -- =========================================================
@@ -55,9 +55,8 @@ CREATE TABLE meeting_topics (
 -- action_items: tag AI-generated rows so the UI can flag them
 -- =========================================================
 ALTER TABLE action_items
-  ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE AFTER notes,
-  ADD COLUMN topic_id     BIGINT  NULL AFTER ai_generated
-             COMMENT 'optional link to the meeting_topic this came out of',
+  ADD COLUMN ai_generated BOOLEAN NOT NULL DEFAULT FALSE                                            AFTER notes,
+  ADD COLUMN topic_id     BIGINT  NULL COMMENT 'links to the meeting_topic this came out of'        AFTER ai_generated,
   ADD KEY idx_ai_topic (topic_id),
   ADD CONSTRAINT fk_ai_topic FOREIGN KEY (topic_id) REFERENCES meeting_topics(id) ON DELETE SET NULL;
 
