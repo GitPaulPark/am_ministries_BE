@@ -60,6 +60,17 @@ public class Sermon extends BaseEntity {
     @Column(name = "audio_url", length = 500)
     private String audioUrl;
 
+    @Column(name = "transcript_pdf_url", length = 500)
+    private String transcriptPdfUrl;
+
+    /**
+     * Null until a PDF has been parsed; true if the parser detected a single
+     * language (so the reader hides the language toggle); false when both KR
+     * and EN paragraphs are present.
+     */
+    @Column(name = "transcript_single_lang")
+    private Boolean transcriptSingleLang;
+
     @Column(name = "video_url", length = 500)
     private String videoUrl;
 

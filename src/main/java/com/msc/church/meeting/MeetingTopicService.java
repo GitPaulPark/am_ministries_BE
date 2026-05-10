@@ -45,6 +45,14 @@ public class MeetingTopicService {
         if (req.parentTopicId() != null) {
             parent = topicRepository.findById(req.parentTopicId())
                     .orElseThrow(() -> new MeetingTopicNotFoundException(req.parentTopicId()));
+            // Cross-meeting guard: parent must belong to the same committee. Without
+            // this a leader of committee A could plant a parent linkage pointing at
+            // committee B's topics — corrupting the cross-meeting graph.
+            Long parentCommitteeId = parent.getMeeting() != null && parent.getMeeting().getCommittee() != null
+                    ? parent.getMeeting().getCommittee().getId() : null;
+            if (parentCommitteeId == null || !parentCommitteeId.equals(m.getCommittee().getId())) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "parent_topic_committee");
+            }
         }
 
         MeetingTopic t = MeetingTopic.builder()

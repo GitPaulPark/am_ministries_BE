@@ -44,6 +44,10 @@ public class SermonMapper {
     }
 
     public SermonDetail toDetail(Sermon s) {
+        return toDetail(s, null);
+    }
+
+    public SermonDetail toDetail(Sermon s, com.msc.church.sermon.dto.SermonTranscriptResponse transcript) {
         if (s == null) return null;
         return new SermonDetail(
                 s.getId(),
@@ -63,7 +67,9 @@ public class SermonMapper {
                 parseQuestions(s.getCellReflectionQuestionsJson()),
                 bulletinRef(s.getLinkedBulletin()),
                 s.isPublished(),
-                s.getPublishedAt()
+                s.getPublishedAt(),
+                transcript,
+                s.getTranscriptPdfUrl()
         );
     }
 

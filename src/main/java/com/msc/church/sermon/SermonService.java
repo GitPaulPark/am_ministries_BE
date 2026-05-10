@@ -41,6 +41,7 @@ public class SermonService {
     private final MemberRepository memberRepository;
     private final BulletinRepository bulletinRepository;
     private final SermonMapper sermonMapper;
+    private final SermonTranscriptService transcriptService;
 
     @Value("${app.uploads.dir:uploads}")
     private String uploadsDir;
@@ -62,14 +63,14 @@ public class SermonService {
         Sermon s = sermonRepository.findWithRefsById(id)
                 .orElseThrow(() -> new SermonNotFoundException(id));
         enforceVisibility(s, caller);
-        return sermonMapper.toDetail(s);
+        return sermonMapper.toDetail(s, transcriptService.loadTranscript(id));
     }
 
     @Transactional(readOnly = true)
     public SermonDetail latest() {
         Sermon s = sermonRepository.findFirstByPublishedTrueOrderBySermonDateDesc()
                 .orElseThrow(() -> new SermonNotFoundException("latest"));
-        return sermonMapper.toDetail(s);
+        return sermonMapper.toDetail(s, transcriptService.loadTranscript(s.getId()));
     }
 
     // ---------- writes ----------

@@ -138,6 +138,14 @@
             <version>${anthropic.version}</version>
         </dependency>
 
+        <!-- Apache PDFBox 3.x — extracts text per page from sermon transcript PDFs
+             so SermonPdfParser can detect EN/KR alternation + section headings. -->
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.3</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

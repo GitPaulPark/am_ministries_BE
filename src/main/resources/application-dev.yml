@@ -23,4 +23,8 @@ logging:
   level:
     com.msc.church: DEBUG
     org.hibernate.SQL: DEBUG
-    org.hibernate.orm.jdbc.bind: TRACE
+    # JDBC bind parameters at TRACE leaks every value Hibernate inlines into
+    # prepared statements — fine today (no JPA columns hold secrets), but the
+    # moment any column does (API keys, OAuth tokens) this would log them.
+    # Flip to TRACE deliberately when you need to debug a specific query.
+    org.hibernate.orm.jdbc.bind: DEBUG

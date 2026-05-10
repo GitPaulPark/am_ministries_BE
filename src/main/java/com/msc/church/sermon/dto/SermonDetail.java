@@ -22,6 +22,9 @@ public record SermonDetail(
         List<String> cellReflectionQuestions,
         SermonBulletinRef linkedBulletin,
         boolean published,
-        LocalDateTime publishedAt
+        LocalDateTime publishedAt,
+        // ---- Bilingual reader (V4) ----
+        SermonTranscriptResponse transcript,
+        String transcriptPdfUrl
 ) {
 }

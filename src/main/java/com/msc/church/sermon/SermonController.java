@@ -6,6 +6,7 @@ import com.msc.church.sermon.dto.SermonAudioResponse;
 import com.msc.church.sermon.dto.SermonCreateRequest;
 import com.msc.church.sermon.dto.SermonDetail;
 import com.msc.church.sermon.dto.SermonSummary;
+import com.msc.church.sermon.dto.SermonTranscriptResponse;
 import com.msc.church.sermon.dto.SermonUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import java.io.IOException;
 public class SermonController {
 
     private final SermonService sermonService;
+    private final SermonTranscriptService transcriptService;
 
     @GetMapping
     @PreAuthorize("isAuthenticated()")
@@ -77,6 +79,18 @@ public class SermonController {
     public ApiResponse<SermonAudioResponse> uploadAudio(@PathVariable Long id,
                                                         @RequestParam("file") MultipartFile file) throws IOException {
         return ApiResponse.ok(sermonService.uploadAudio(id, file, SecurityUtil.currentUser()));
+    }
+
+    /**
+     * Upload a bilingual transcript PDF — parsed into sermon_paragraphs and surfaced
+     * via the SermonDetail.transcript field. Replaces any prior parsed paragraphs.
+     */
+    @PostMapping("/{id}/transcript-pdf")
+    @PreAuthorize("hasAnyRole('ADMIN','PASTOR')")
+    public ApiResponse<SermonTranscriptResponse> uploadTranscriptPdf(
+            @PathVariable Long id,
+            @RequestParam("file") MultipartFile file) {
+        return ApiResponse.ok(transcriptService.uploadPdf(id, file, SecurityUtil.currentUser()));
     }
 
     @DeleteMapping("/{id}")
