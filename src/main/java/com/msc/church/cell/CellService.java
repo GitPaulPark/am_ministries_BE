@@ -63,15 +63,18 @@ public class CellService {
         return toDetailWithRoster(cell, includeInactiveRoster);
     }
 
-    /** Returns the calling user's primary cell with full roster. 404 if none linked. */
+    /**
+     * Returns the calling user's primary cell with full roster, or {@code null}
+     * when the caller has no member record (e.g. admin@msc.local) or no primary
+     * cell. Returning null keeps the contract noise-free in the console — the
+     * frontend renders an empty state regardless.
+     */
     @Transactional(readOnly = true)
     public CellDetail getMyPrimaryCell(AuthenticatedUser caller) {
-        if (caller == null || caller.memberId() == null) {
-            throw new BusinessException(ErrorCode.NOT_FOUND);
-        }
-        CellMembership primary = membershipRepository.findByMember_IdAndPrimaryTrue(caller.memberId())
-                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
-        return toDetailWithRoster(primary.getCell(), false);
+        if (caller == null || caller.memberId() == null) return null;
+        return membershipRepository.findByMember_IdAndPrimaryTrue(caller.memberId())
+                .map(cm -> toDetailWithRoster(cm.getCell(), false))
+                .orElse(null);
     }
 
     // ---------- writes ----------
