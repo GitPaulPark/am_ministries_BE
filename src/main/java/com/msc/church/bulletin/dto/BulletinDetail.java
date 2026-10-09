@@ -14,6 +14,7 @@ public record BulletinDetail(
         String memoryVerseRef,
         String memoryVerseTextKr,
         String memoryVerseTextEn,
+        String pdfUrl,
         MemberRef nextWeekPrayer,
         List<LiturgyRoleResponse> liturgyRoles,
         List<AnnouncementResponse> announcements,

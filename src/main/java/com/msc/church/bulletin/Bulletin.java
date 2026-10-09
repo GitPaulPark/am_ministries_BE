@@ -64,6 +64,11 @@ public class Bulletin extends BaseEntity {
     @Column(name = "memory_verse_text_en", columnDefinition = "TEXT")
     private String memoryVerseTextEn;
 
+    /** Optional PDF-only bulletin — when set, publish validation skips the
+     *  liturgy/scripture/presider checks (members read the PDF directly). */
+    @Column(name = "pdf_url", length = 500)
+    private String pdfUrl;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "next_week_prayer_member_id")
     private Member nextWeekPrayer;

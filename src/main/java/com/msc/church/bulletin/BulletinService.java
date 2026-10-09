@@ -19,11 +19,17 @@ import com.msc.church.member.Member;
 import com.msc.church.member.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -57,6 +63,13 @@ public class BulletinService {
     private final MemberRepository memberRepository;
     private final CellRepository cellRepository;
     private final BulletinMapper bulletinMapper;
+
+    /** Base directory for uploaded files. Same root the WebConfig static handler serves. */
+    @Value("${app.uploads.dir:uploads}")
+    private String uploadsDir;
+
+    /** Hard cap for a weekly bulletin PDF. Real bulletins run 2-3 MB; 20 MB is generous. */
+    private static final long MAX_PDF_BYTES = 20L * 1024 * 1024;
 
     // ---------- queries ----------
 
@@ -280,6 +293,11 @@ public class BulletinService {
     }
 
     private void validatePublishable(Bulletin b) {
+        // PDF-only bulletin: the uploaded file IS the bulletin. Skip the structured
+        // field checks — members read the PDF directly.
+        if (b.getPdfUrl() != null && !b.getPdfUrl().isBlank()) {
+            return;
+        }
         if (b.getPresider() == null) {
             throw new BusinessException(ErrorCode.VALIDATION_FAILED, "presider");
         }
@@ -296,6 +314,43 @@ public class BulletinService {
                 throw new BusinessException(ErrorCode.VALIDATION_FAILED, required.name());
             }
         }
+    }
+
+    /**
+     * Upload a weekly-bulletin PDF. Overwrites any previously uploaded PDF for the
+     * same bulletin. Writes to {@code uploads/bulletins/{id}/bulletin.pdf} which the
+     * public {@code /uploads/**} handler serves. Returns the public URL to the file.
+     */
+    @Transactional
+    public String uploadPdf(Long id, MultipartFile file, AuthenticatedUser caller) {
+        Bulletin b = bulletinRepository.findById(id)
+                .orElseThrow(() -> new BulletinNotFoundException(id));
+        if (file == null || file.isEmpty()) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "file");
+        }
+        if (file.getSize() > MAX_PDF_BYTES) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "pdf_too_large");
+        }
+        String original = file.getOriginalFilename();
+        if (original == null || !original.toLowerCase().endsWith(".pdf")) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "pdf_format");
+        }
+
+        Path base = Paths.get(uploadsDir, "bulletins", String.valueOf(id)).toAbsolutePath().normalize();
+        try {
+            Files.createDirectories(base);
+            Path target = base.resolve("bulletin.pdf");
+            file.transferTo(target);
+        } catch (IOException ex) {
+            log.error("Bulletin PDF write failed: id={} err={}", id, ex.getMessage());
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "pdf_io");
+        }
+
+        String url = "/uploads/bulletins/" + id + "/bulletin.pdf";
+        b.setPdfUrl(url);
+        log.info("Bulletin PDF uploaded: id={} bytes={} byUser={}",
+                id, file.getSize(), callerId(caller));
+        return url;
     }
 
     private void validateLiturgyAssignees(List<LiturgyRoleRequest> roles) {

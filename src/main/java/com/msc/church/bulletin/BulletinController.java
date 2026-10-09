@@ -4,6 +4,7 @@ import com.msc.church.auth.SecurityUtil;
 import com.msc.church.bulletin.dto.BulletinCreateRequest;
 import com.msc.church.bulletin.dto.BulletinDetail;
 import com.msc.church.bulletin.dto.BulletinDuplicateRequest;
+import com.msc.church.bulletin.dto.BulletinPdfResponse;
 import com.msc.church.bulletin.dto.BulletinSummary;
 import com.msc.church.bulletin.dto.BulletinUpdateRequest;
 import com.msc.church.common.ApiResponse;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 
@@ -85,6 +87,16 @@ public class BulletinController {
     @PreAuthorize("hasAnyRole('ADMIN','PASTOR')")
     public ApiResponse<BulletinDetail> publish(@PathVariable Long id) {
         return ApiResponse.ok(bulletinService.publish(id, SecurityUtil.currentUser()));
+    }
+
+    /** Upload a weekly-bulletin PDF — makes a bulletin publishable without the
+     *  structured liturgy/scripture/presider fields. Overwrites any prior upload. */
+    @PostMapping("/{id}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN','PASTOR')")
+    public ApiResponse<BulletinPdfResponse> uploadPdf(@PathVariable Long id,
+                                                      @RequestParam("file") MultipartFile file) {
+        return ApiResponse.ok(new BulletinPdfResponse(
+                bulletinService.uploadPdf(id, file, SecurityUtil.currentUser())));
     }
 
     @DeleteMapping("/{id}")
