@@ -31,11 +31,14 @@ public interface SermonRepository extends JpaRepository<Sermon, Long> {
                    OR LOWER(COALESCE(s.titleEn, ''))    LIKE CONCAT('%', LOWER(:q), '%')
                    OR LOWER(s.scriptureRef)             LIKE CONCAT('%', LOWER(:q), '%')
                    OR LOWER(COALESCE(s.theme, ''))      LIKE CONCAT('%', LOWER(:q), '%'))
+              AND (:scripture IS NULL OR :scripture = ''
+                   OR LOWER(s.scriptureRef) LIKE CONCAT(LOWER(:scripture), '%'))
               AND (:year IS NULL OR FUNCTION('YEAR', s.sermonDate) = :year)
               AND (:preacherId IS NULL OR s.preacher.id = :preacherId)
               AND (:publishedOnly = false OR s.published = true)
             """)
     Page<Sermon> search(@Param("q") String q,
+                        @Param("scripture") String scripture,
                         @Param("year") Integer year,
                         @Param("preacherId") Long preacherId,
                         @Param("publishedOnly") boolean publishedOnly,

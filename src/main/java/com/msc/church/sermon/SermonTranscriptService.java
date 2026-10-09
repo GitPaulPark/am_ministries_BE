@@ -4,6 +4,8 @@ import com.msc.church.auth.AuthenticatedUser;
 import com.msc.church.auth.Role;
 import com.msc.church.common.BusinessException;
 import com.msc.church.common.ErrorCode;
+import com.msc.church.sermon.dto.ParagraphBulkReplaceRequest;
+import com.msc.church.sermon.dto.ParagraphDto;
 import com.msc.church.sermon.dto.SermonTranscriptResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -86,6 +88,140 @@ public class SermonTranscriptService {
                 sermonId, parsed.size(), sermon.getTranscriptSingleLang());
 
         return buildResponse(sermon, parsed);
+    }
+
+    /**
+     * Admin transcript editor — returns raw paragraph rows (with ids) ordered
+     * by {@code orderIdx}. The reader endpoint returns the rendered shape;
+     * this one is for the edit screen.
+     */
+    @Transactional(readOnly = true)
+    public List<ParagraphDto> listParagraphs(Long sermonId, AuthenticatedUser caller) {
+        assertAdminOrPastor(caller);
+        // Validate the sermon exists so the editor 404s cleanly.
+        sermonRepository.findById(sermonId)
+                .orElseThrow(() -> new SermonNotFoundException(sermonId));
+        return paragraphRepository.findBySermon_IdOrderByOrderIdxAsc(sermonId).stream()
+                .map(p -> new ParagraphDto(
+                        p.getId(),
+                        p.getOrderIdx() == null ? 0 : p.getOrderIdx(),
+                        p.getSectionIdx(),
+                        p.getSectionTitleKr(),
+                        p.getSectionTitleEn(),
+                        p.getKind(),
+                        p.getLanguage(),
+                        p.getText(),
+                        p.getScriptureRef(),
+                        p.getPairKey()))
+                .toList();
+    }
+
+    /**
+     * Replace the full paragraph list. Diffing strategy: rows with an id are
+     * updated in place; rows without an id are inserted; existing rows whose id
+     * is absent from the request are deleted. {@code orderIdx} is derived from
+     * the array index (0-based) so the client never has to manage it.
+     */
+    @Transactional
+    public List<ParagraphDto> bulkReplaceParagraphs(Long sermonId,
+                                                    ParagraphBulkReplaceRequest req,
+                                                    AuthenticatedUser caller) {
+        assertAdminOrPastor(caller);
+        Sermon sermon = sermonRepository.findById(sermonId)
+                .orElseThrow(() -> new SermonNotFoundException(sermonId));
+        if (req.paragraphs() == null) {
+            throw new BusinessException(ErrorCode.VALIDATION_FAILED, "paragraphs");
+        }
+
+        // Index existing rows by id so we can update in place.
+        Map<Long, SermonParagraph> existing = new java.util.HashMap<>();
+        for (SermonParagraph p : paragraphRepository.findBySermon_IdOrderByOrderIdxAsc(sermonId)) {
+            existing.put(p.getId(), p);
+        }
+
+        List<SermonParagraph> rebuilt = new java.util.ArrayList<>();
+        int order = 0;
+        for (ParagraphBulkReplaceRequest.Input in : req.paragraphs()) {
+            if (in.text() == null || in.text().isBlank()) {
+                throw new BusinessException(ErrorCode.VALIDATION_FAILED, "text");
+            }
+            if (!isValidKind(in.kind()))     throw new BusinessException(ErrorCode.VALIDATION_FAILED, "kind");
+            if (!isValidLanguage(in.language())) throw new BusinessException(ErrorCode.VALIDATION_FAILED, "language");
+
+            SermonParagraph p;
+            if (in.id() != null && existing.containsKey(in.id())) {
+                p = existing.remove(in.id());
+                p.setOrderIdx(order);
+                p.setSectionIdx(in.sectionIdx());
+                p.setSectionTitleKr(blankToNull(in.sectionTitleKr()));
+                p.setSectionTitleEn(blankToNull(in.sectionTitleEn()));
+                p.setKind(in.kind());
+                p.setLanguage(in.language());
+                p.setText(in.text().trim());
+                p.setScriptureRef(blankToNull(in.scriptureRef()));
+                p.setPairKey(blankToNull(in.pairKey()));
+            } else {
+                p = SermonParagraph.builder()
+                        .sermon(sermon)
+                        .orderIdx(order)
+                        .sectionIdx(in.sectionIdx())
+                        .sectionTitleKr(blankToNull(in.sectionTitleKr()))
+                        .sectionTitleEn(blankToNull(in.sectionTitleEn()))
+                        .kind(in.kind())
+                        .language(in.language())
+                        .text(in.text().trim())
+                        .scriptureRef(blankToNull(in.scriptureRef()))
+                        .pairKey(blankToNull(in.pairKey()))
+                        .build();
+            }
+            rebuilt.add(p);
+            order++;
+        }
+
+        // Delete anything left over.
+        if (!existing.isEmpty()) {
+            paragraphRepository.deleteAllInBatch(existing.values());
+        }
+        paragraphRepository.saveAll(rebuilt);
+
+        // Recompute single-language flag based on the new content.
+        sermon.setTranscriptSingleLang(isSingleLanguage(rebuilt));
+
+        log.info("Transcript paragraphs replaced: sermonId={} total={} deleted={} byUser={}",
+                sermonId, rebuilt.size(), existing.size(), caller == null ? null : caller.id());
+
+        return rebuilt.stream()
+                .map(p -> new ParagraphDto(
+                        p.getId(),
+                        p.getOrderIdx() == null ? 0 : p.getOrderIdx(),
+                        p.getSectionIdx(),
+                        p.getSectionTitleKr(),
+                        p.getSectionTitleEn(),
+                        p.getKind(),
+                        p.getLanguage(),
+                        p.getText(),
+                        p.getScriptureRef(),
+                        p.getPairKey()))
+                .toList();
+    }
+
+    private static final java.util.Set<String> VALID_KINDS =
+            java.util.Set.of("paragraph", "scripture", "section_heading", "preacher_meta");
+    private static final java.util.Set<String> VALID_LANGUAGES = java.util.Set.of("kr", "en");
+
+    private static boolean isValidKind(String k) { return k != null && VALID_KINDS.contains(k); }
+    private static boolean isValidLanguage(String l) { return l != null && VALID_LANGUAGES.contains(l); }
+
+    private static String blankToNull(String s) {
+        if (s == null) return null;
+        String t = s.trim();
+        return t.isEmpty() ? null : t;
+    }
+
+    private void assertAdminOrPastor(AuthenticatedUser caller) {
+        if (caller == null || (caller.role() != Role.ADMIN && caller.role() != Role.PASTOR)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN);
+        }
     }
 
     @Transactional(readOnly = true)

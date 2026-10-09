@@ -154,11 +154,11 @@ class SermonServiceTest {
     @Test
     @DisplayName("search: members are forced to publishedOnly=true regardless of staff filter")
     void search_memberPublishedOnly() {
-        when(sermonRepository.search(any(), any(), any(), org.mockito.ArgumentMatchers.eq(true), any()))
+        when(sermonRepository.search(any(), any(), any(), any(), org.mockito.ArgumentMatchers.eq(true), any()))
                 .thenReturn(org.springframework.data.domain.Page.empty());
-        sermonService.search("Taste", null, null,
+        sermonService.search("Taste", null, null, null,
                 org.springframework.data.domain.PageRequest.of(0, 10), member);
-        verify(sermonRepository).search(any(), any(), any(),
+        verify(sermonRepository).search(any(), any(), any(), any(),
                 org.mockito.ArgumentMatchers.eq(true), any());
     }
 

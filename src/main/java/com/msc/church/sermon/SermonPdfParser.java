@@ -48,9 +48,10 @@ public class SermonPdfParser {
             "^\\s*((?:[1-3]\\s+)?[A-Z][a-zA-Z]+)\\s+(\\d+):(\\d+(?:[-–]\\d+)?)\\s+(.+)$",
             Pattern.DOTALL);
 
-    /** "요한복음 14:15" — Korean Bible reference. */
+    /** "요한복음 14:15" — Korean Bible reference. Tolerates typos like
+     *  "신명기 6:;4~5" (double separator) and stray spaces around `:` / `;`. */
     private static final Pattern KR_VERSE = Pattern.compile(
-            "^\\s*([\\p{IsHangul}]+(?:서|기|음|상|하|상하)?)\\s+(\\d+)[:;](\\d+(?:[-–~]\\d+)?)\\s+(.+)$",
+            "^\\s*([\\p{IsHangul}]+(?:서|기|음|상|하|상하)?)\\s+(\\d+)\\s*[:;]+\\s*(\\d+(?:\\s*[-–~]\\s*\\d+)?)\\s+(.+)$",
             Pattern.DOTALL);
 
     /** "1 / 8" page footer the PDF uses. Strip on read. */

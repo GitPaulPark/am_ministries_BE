@@ -2,6 +2,8 @@ package com.msc.church.sermon;
 
 import com.msc.church.auth.SecurityUtil;
 import com.msc.church.common.ApiResponse;
+import com.msc.church.sermon.dto.ParagraphBulkReplaceRequest;
+import com.msc.church.sermon.dto.ParagraphDto;
 import com.msc.church.sermon.dto.SermonAudioResponse;
 import com.msc.church.sermon.dto.SermonCreateRequest;
 import com.msc.church.sermon.dto.SermonDetail;
@@ -37,10 +39,11 @@ public class SermonController {
     @GetMapping
     @PreAuthorize("isAuthenticated()")
     public ApiResponse<Page<SermonSummary>> list(@RequestParam(required = false) String q,
+                                                 @RequestParam(required = false) String scripture,
                                                  @RequestParam(required = false) Integer year,
                                                  @RequestParam(required = false) Long preacherId,
                                                  Pageable pageable) {
-        return ApiResponse.ok(sermonService.search(q, year, preacherId, pageable, SecurityUtil.currentUser()));
+        return ApiResponse.ok(sermonService.search(q, scripture, year, preacherId, pageable, SecurityUtil.currentUser()));
     }
 
     @GetMapping("/latest")
@@ -91,6 +94,22 @@ public class SermonController {
             @PathVariable Long id,
             @RequestParam("file") MultipartFile file) {
         return ApiResponse.ok(transcriptService.uploadPdf(id, file, SecurityUtil.currentUser()));
+    }
+
+    /** Raw paragraph list for the admin transcript editor. */
+    @GetMapping("/{id}/paragraphs")
+    @PreAuthorize("hasAnyRole('ADMIN','PASTOR')")
+    public ApiResponse<java.util.List<ParagraphDto>> listParagraphs(@PathVariable Long id) {
+        return ApiResponse.ok(transcriptService.listParagraphs(id, SecurityUtil.currentUser()));
+    }
+
+    /** Bulk-replace the paragraph list — diff-driven update. */
+    @PutMapping("/{id}/paragraphs")
+    @PreAuthorize("hasAnyRole('ADMIN','PASTOR')")
+    public ApiResponse<java.util.List<ParagraphDto>> replaceParagraphs(
+            @PathVariable Long id,
+            @Valid @RequestBody ParagraphBulkReplaceRequest req) {
+        return ApiResponse.ok(transcriptService.bulkReplaceParagraphs(id, req, SecurityUtil.currentUser()));
     }
 
     @DeleteMapping("/{id}")

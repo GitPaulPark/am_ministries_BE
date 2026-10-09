@@ -49,12 +49,13 @@ public class SermonService {
     // ---------- queries ----------
 
     @Transactional(readOnly = true)
-    public Page<SermonSummary> search(String q, Integer year, Long preacherId,
+    public Page<SermonSummary> search(String q, String scripture, Integer year, Long preacherId,
                                       Pageable pageable, AuthenticatedUser caller) {
         boolean publishedOnly = !isStaff(caller);
         // Spec: queries shorter than 2 chars return nothing, to keep search noise down.
         String effectiveQ = (q != null && q.trim().length() >= 2) ? q.trim() : null;
-        return sermonRepository.search(effectiveQ, year, preacherId, publishedOnly, pageable)
+        String effectiveScripture = (scripture != null && !scripture.isBlank()) ? scripture.trim() : null;
+        return sermonRepository.search(effectiveQ, effectiveScripture, year, preacherId, publishedOnly, pageable)
                 .map(sermonMapper::toSummary);
     }
 
