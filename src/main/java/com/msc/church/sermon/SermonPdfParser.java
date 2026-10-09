@@ -39,6 +39,13 @@ public class SermonPdfParser {
     private static final Pattern SECTION_HEADING = Pattern.compile(
             "^\\s*(\\d+)\\.\\s+([^가-힣]{1,120}?)\\s+([\\p{IsHangul}][^\\n]{0,119})\\s*$");
 
+    /** "1. Insider" / "2. Rubbish & Pride" — English-only heading on its own line.
+     *  Some PDFs put the Korean counterpart on separate paragraphs below the English
+     *  heading rather than inline. Keep the title short (≤60 chars, no period or
+     *  semicolon) so a numbered sentence of body prose doesn't look like a heading. */
+    private static final Pattern SECTION_HEADING_EN_ONLY = Pattern.compile(
+            "^\\s*(\\d+)\\.\\s+([A-Z&][A-Za-z0-9 &?!'\\-]{0,60})\\s*$");
+
     /** A line that starts a new section. Used by {@link #splitIntoParagraphs} to break
      *  a paragraph even when no blank line separator preceded it. */
     private static final Pattern SECTION_HEADING_START = Pattern.compile("^\\s*\\d+\\.\\s+\\S");
@@ -107,6 +114,24 @@ public class SermonPdfParser {
                         .sectionIdx(sectionIdx).sectionTitleKr(sectionKr).sectionTitleEn(sectionEn)
                         .kind("section_heading").language("kr")
                         .text(mh.group(1) + ". " + sectionKr)
+                        .build());
+                continue;
+            }
+
+            // English-only heading: emit a single EN section_heading, leave sectionKr null so
+            // the UI falls back to the EN title. Preserves section grouping for sermons whose
+            // PDF only numbers the English headings.
+            Matcher mhEn = SECTION_HEADING_EN_ONLY.matcher(trimmed);
+            if (mhEn.find()) {
+                sectionIdx++;
+                sectionEn = mhEn.group(2).trim();
+                sectionKr = null;
+                pendingEn = null;
+                out.add(SermonParagraph.builder()
+                        .sermon(sermon).orderIdx(order++)
+                        .sectionIdx(sectionIdx).sectionTitleKr(null).sectionTitleEn(sectionEn)
+                        .kind("section_heading").language("en")
+                        .text(mhEn.group(1) + ". " + sectionEn)
                         .build());
                 continue;
             }
