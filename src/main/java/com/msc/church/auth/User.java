@@ -45,6 +45,11 @@ public class User extends BaseEntity {
     @Column(name = "enabled", nullable = false)
     private boolean enabled;
 
+    /** When true, the UI forces the user through /me/password on next login.
+     *  AuthService.changePassword clears this on a successful change. */
+    @Column(name = "password_change_required", nullable = false)
+    private boolean passwordChangeRequired;
+
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 }

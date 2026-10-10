@@ -42,8 +42,10 @@ public class AuthController {
                                             HttpServletResponse response) {
         AuthService.TokenBundle bundle = authService.login(request);
         writeRefreshCookie(response, bundle.refreshToken());
-        log.info("Login success: userId={}", bundle.user().id());
-        return ApiResponse.ok(new LoginResponse(bundle.accessToken(), bundle.user()));
+        log.info("Login success: userId={} passwordChangeRequired={}",
+                bundle.user().id(), bundle.passwordChangeRequired());
+        return ApiResponse.ok(new LoginResponse(bundle.accessToken(), bundle.user(),
+                bundle.passwordChangeRequired()));
     }
 
     @PostMapping("/refresh")
@@ -51,7 +53,8 @@ public class AuthController {
                                               HttpServletResponse response) {
         AuthService.TokenBundle bundle = authService.refresh(refreshToken);
         writeRefreshCookie(response, bundle.refreshToken());
-        return ApiResponse.ok(new LoginResponse(bundle.accessToken(), bundle.user()));
+        return ApiResponse.ok(new LoginResponse(bundle.accessToken(), bundle.user(),
+                bundle.passwordChangeRequired()));
     }
 
     @PostMapping("/logout")

@@ -34,7 +34,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
 
-    public record TokenBundle(String accessToken, String refreshToken, AuthUserResponse user) {
+    public record TokenBundle(String accessToken, String refreshToken, AuthUserResponse user,
+                              boolean passwordChangeRequired) {
     }
 
     @Transactional
@@ -114,6 +115,9 @@ public class AuthService {
             throw new BadCredentialsException("invalid");
         }
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        // A successful change clears the forced-change flag — the gate stays set
+        // on bootstrap/seed accounts until the real human picks a password.
+        user.setPasswordChangeRequired(false);
         refreshTokenRepository.revokeAllForUser(userId);
         log.info("Password changed: userId={}", userId);
     }
@@ -134,7 +138,8 @@ public class AuthService {
                 .build();
         refreshTokenRepository.save(stored);
 
-        return new TokenBundle(accessToken, refreshToken, toUserResponse(user));
+        return new TokenBundle(accessToken, refreshToken, toUserResponse(user),
+                user.isPasswordChangeRequired());
     }
 
     private AuthUserResponse toUserResponse(User user) {

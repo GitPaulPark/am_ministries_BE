@@ -73,6 +73,9 @@ public class DataInitializer implements CommandLineRunner {
                 .passwordHash(passwordEncoder.encode(DEFAULT_ADMIN_PASSWORD))
                 .role(Role.ADMIN)
                 .enabled(true)
+                // Dev admin still gets the forced-change flag so the UI path is
+                // exercised in dev. Devs can clear it with one call to /me/password.
+                .passwordChangeRequired(true)
                 .memberId(null)
                 .build();
         userRepository.save(admin);
