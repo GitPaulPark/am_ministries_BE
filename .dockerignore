@@ -1,0 +1,38 @@
+# Build artifacts — regenerated during the Dockerfile's build stage
+target/
+*.jar
+*.war
+
+# IDE scratch
+.idea/
+.vscode/
+*.iml
+
+# Local git state and docs — the image only needs the source
+.git/
+.gitignore
+.gitattributes
+README.md
+HELP.md
+*.md
+
+# Local dev tooling
+docker-compose.yml
+.env
+.env.*
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Logs / dumps
+*.log
+logs/
+hs_err_pid*.log
+
+# Local uploads (dev test data) — never bake into the image
+uploads/
+private-uploads/
+
+# Scripts not used at build time
+scripts/
