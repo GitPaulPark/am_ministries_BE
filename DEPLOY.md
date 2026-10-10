@@ -71,7 +71,8 @@ Secret value (JSON):
   "DB_PASSWORD": "<the master password from step 1>",
   "JWT_SECRET": "<generate: openssl rand -base64 48>",
   "INITIAL_ADMIN_EMAIL": "pastor@yourchurch.org",
-  "INITIAL_ADMIN_PASSWORD": "<temporary — will be forced to change on first login>"
+  "INITIAL_ADMIN_PASSWORD": "<temporary — will be forced to change on first login>",
+  "SENTRY_DSN": "<optional — sentry.io project DSN, blank disables>"
 }
 ```
 
@@ -147,16 +148,17 @@ Prod bootstrap: created initial ADMIN pastor@yourchurch.org with
 Started ChurchApplication in XX seconds
 ```
 
-Smoke test:
-```bash
-curl -s https://api.church.example.com/actuator/health | jq
-# {"status":"UP"}
+Smoke test — the script `scripts/smoke.sh` ships with the backend repo:
 
-curl -s -X POST https://api.church.example.com/api/v1/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"pastor@yourchurch.org","password":"<temp password>"}'
-# → should return accessToken + passwordChangeRequired: true
+```bash
+BASE_URL=https://api.church.example.com \
+  ADMIN_EMAIL=pastor@yourchurch.org \
+  ADMIN_PASSWORD=<temp password> \
+  ./scripts/smoke.sh
 ```
+
+Checks health, public landing, rate limiter, CORS preflight, login + /me.
+Exits non-zero on any failure — safe to wire into a CD pipeline step.
 
 ---
 
@@ -178,6 +180,9 @@ AWS console → ACM (`ap-northeast-2`): request a certificate for
 2. Framework preset: **Vite**. Build command auto-detected.
 3. Environment variables:
    - `VITE_API_BASE_URL = https://api.church.example.com/api/v1`
+   - `VITE_SENTRY_DSN = <sentry.io project DSN>` (optional — leave empty to disable)
+   - `VITE_SENTRY_ENV = production`
+   - `VITE_SENTRY_RELEASE = $VERCEL_GIT_COMMIT_SHA` (lets Sentry attribute issues to a deploy)
 4. Deploy. First build takes ~2 min.
 5. Settings → Domains → add `church.example.com`. Vercel issues the HTTPS
    cert automatically.
@@ -267,9 +272,10 @@ push without a maintenance window" judgment.
 
 Tracked as separate follow-ups, not blocking the first deploy:
 
-- Rate limiting on `/api/v1/public/**`
-- Sentry error tracking (both repos)
-- Code-splitting the frontend bundle (currently 1.3 MB → 375 kB gzipped)
 - Full test coverage for the attendance (dept + sunday) and bulletin PDF
   modules; migration still safe without them, but you're flying blind on
   future refactors.
+- Real seed data (actual cells, pastors, service teams). Easiest to enter
+  through the admin UI once prod is live.
+- Monthly backup restore drill (both EFS + RDS). Schedule a calendar
+  reminder — undrilled backups are approximately as useful as none.
