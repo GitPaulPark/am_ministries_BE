@@ -43,7 +43,9 @@ public class GlobalExceptionHandler {
         String detail = ex.getBindingResult().getFieldErrors().stream()
                 .map(this::formatFieldError)
                 .collect(Collectors.joining("; "));
-        String message = resolve(ErrorCode.VALIDATION_FAILED.getMessageKey()) + ": " + detail;
+        // The i18n template carries a {0} slot for the field detail — pass it
+        // as the first message arg so Korean users see which input failed.
+        String message = resolve(ErrorCode.VALIDATION_FAILED.getMessageKey(), detail);
         log.warn("Validation failed: {}", detail);
         return ResponseEntity.status(ErrorCode.VALIDATION_FAILED.getStatus())
                 .body(ApiResponse.error(ErrorCode.VALIDATION_FAILED, message));
