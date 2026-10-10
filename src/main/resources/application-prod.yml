@@ -4,6 +4,20 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+# Sentry — error tracking. Blank DSN disables the SDK entirely (no-op).
+# Set SENTRY_DSN in prod env/secrets to turn on.
+sentry:
+  dsn: ${SENTRY_DSN:}
+  environment: ${SENTRY_ENV:prod}
+  release: ${SENTRY_RELEASE:}
+  send-default-pii: false
+  # Lower trace sampling — error events are always captured; only 10% of
+  # requests get a performance trace to keep the Sentry quota reasonable.
+  traces-sample-rate: 0.1
+  logging:
+    minimum-event-level: warn
+    minimum-breadcrumb-level: info
     hikari:
       maximum-pool-size: 10
       minimum-idle: 2
