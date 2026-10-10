@@ -16,6 +16,7 @@ public enum ErrorCode {
     FORBIDDEN(HttpStatus.FORBIDDEN, "error.forbidden"),
     NOT_FOUND(HttpStatus.NOT_FOUND, "error.not_found"),
     CONFLICT(HttpStatus.CONFLICT, "error.conflict"),
+    RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "error.rate_limited"),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "error.internal"),
 
     // --- Auth ---
