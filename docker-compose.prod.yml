@@ -1,0 +1,116 @@
+# Single-server production stack. Backend + MySQL + Caddy (reverse proxy +
+# static frontend + automatic HTTPS). Costs ~$5-15/mo on NCP Compact Server,
+# Lightsail Seoul, Hetzner CX22, or similar; also works on a home server
+# behind Cloudflare Tunnel.
+#
+# Layout on the server:
+#   ~/am_ministries/
+#     ├── am-backend/      (this repo, holds this compose + Caddyfile)
+#     ├── am-frontend/     (sibling repo; `npm run build` produces dist/)
+#     └── .env.prod        (DB_PASSWORD, JWT_SECRET, INITIAL_ADMIN_*, DOMAIN,
+#                           SENTRY_DSN — copy from .env.prod.example)
+#
+# Deploy:
+#   cd ~/am_ministries/am-frontend && git pull && npm ci && npm run build
+#   cd ~/am_ministries/am-backend  && git pull
+#   docker compose -f docker-compose.prod.yml --env-file ../.env.prod up -d --build
+#
+# All three services restart on failure, so a reboot brings the site back up.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: church-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mysql://mysql:3306/church?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&serverTimezone=UTC&useSSL=false&allowPublicKeyRetrieval=true
+      DB_USERNAME: church
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_ISSUER: msc-church
+      CORS_ALLOWED_ORIGINS: https://${DOMAIN}
+      UPLOADS_DIR: /data/uploads
+      PRIVATE_UPLOADS_DIR: /data/private
+      INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}
+      # Cookies over HTTPS behind Caddy — safe to flip Secure on.
+      APP_COOKIES_SECURE: "true"
+      # Caddy terminates TLS; Spring sees X-Forwarded-Proto=https.
+      SERVER_FORWARD_HEADERS_STRATEGY: native
+      # Optional observability — blank disables.
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENV: ${SENTRY_ENV:-prod}
+      # Optional AI pipeline — blank disables.
+      MSC_AI_ENABLED: ${MSC_AI_ENABLED:-false}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    volumes:
+      - church-uploads:/data/uploads
+      - church-private:/data/private
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - church-net
+    # Not published to the host — only reachable via caddy on the same network.
+
+  mysql:
+    image: mysql:8.4
+    container_name: church-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: church
+      MYSQL_USER: church
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Seoul
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - church-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - church-net
+    # Not published — only backend reaches it on the compose network.
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: church-caddy
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN}
+      TLS_EMAIL: ${TLS_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Serves the Vite build output. The server-side deploy step runs
+      # `npm run build` in ../am-frontend before `docker compose up`.
+      - ../am-frontend/dist:/srv/frontend:ro
+      - caddy-data:/data   # Let's Encrypt certs — PERSIST THIS
+      - caddy-config:/config
+    depends_on:
+      - backend
+    networks:
+      - church-net
+
+volumes:
+  church-mysql-data:
+  church-uploads:
+  church-private:
+  caddy-data:
+  caddy-config:
+
+networks:
+  church-net:

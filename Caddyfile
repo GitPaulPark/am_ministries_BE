@@ -1,0 +1,56 @@
+# Caddy reverse proxy + static frontend + automatic HTTPS.
+# Replaces an nginx + certbot + supervisord stack with ~20 lines.
+#
+# Caddy automatically obtains and renews Let's Encrypt certs for {$DOMAIN}
+# on first request, as long as ports 80 and 443 are reachable from the public
+# internet. The TLS_EMAIL env var is where Let's Encrypt sends expiry
+# warnings — set to a mailbox you actually read.
+
+{
+    email {$TLS_EMAIL}
+    # Comment this out once you've verified the stack works end-to-end so
+    # future issuances go through the production Let's Encrypt endpoint.
+    # acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
+}
+
+{$DOMAIN} {
+    encode zstd gzip
+
+    # Backend endpoints — proxy to the Spring Boot container on the compose
+    # network. Caddy adds X-Forwarded-{For,Proto,Host} by default, which
+    # Spring's forward-headers-strategy=native picks up.
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+    handle /uploads/* {
+        reverse_proxy backend:8080
+    }
+    handle /actuator/* {
+        reverse_proxy backend:8080
+    }
+
+    # Everything else — serve the Vite build. The SPA fallback (`try_files`
+    # with /index.html) lets react-router handle in-app routes without a
+    # 404 from Caddy.
+    handle {
+        root * /srv/frontend
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Security headers. HSTS is strict — only enable after HTTPS proven working.
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Content-Security-Policy intentionally omitted for V1 — once you've
+        # audited every inline/eval/font/image source, tighten it here.
+    }
+
+    # Access log — rotates in Docker's log driver; tune size/retention in daemon.json.
+    log {
+        output stdout
+        format console
+    }
+}
